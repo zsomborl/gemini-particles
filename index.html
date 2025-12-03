@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Particle Core | System Verified</title>
+    <title>Particle Core | Reactive</title>
     <style>
         /* --- 1. CORE STYLES --- */
         body { 
@@ -12,42 +12,29 @@
             touch-action: none; user-select: none; -webkit-user-select: none;
         }
 
-        /* --- 2. START SCREEN (THE ENGAGE PROMPT) --- */
+        /* --- 2. START OVERLAY --- */
         #start-overlay {
             position: absolute; inset: 0; z-index: 9999;
-            background: rgba(0,0,0,0.95);
+            background: radial-gradient(circle at center, #111 0%, #000 100%);
             display: flex; flex-direction: column; align-items: center; justify-content: center;
             transition: opacity 0.5s;
         }
 
         #engage-btn {
-            background: transparent;
-            color: #00d2ff;
-            border: 2px solid #00d2ff;
-            padding: 25px 60px;
-            font-size: 1.2rem;
-            font-weight: bold;
-            letter-spacing: 3px;
-            text-transform: uppercase;
-            cursor: pointer;
-            border-radius: 4px;
-            box-shadow: 0 0 20px rgba(0, 210, 255, 0.2);
-            transition: all 0.2s;
-            position: relative;
-            overflow: hidden;
+            background: transparent; color: #00d2ff; border: 2px solid #00d2ff;
+            padding: 25px 60px; font-size: 1.2rem; font-weight: bold; letter-spacing: 3px;
+            text-transform: uppercase; cursor: pointer; border-radius: 4px;
+            box-shadow: 0 0 30px rgba(0, 210, 255, 0.3); position: relative; overflow: hidden;
         }
         
-        #engage-btn:active { transform: scale(0.95); background: rgba(0, 210, 255, 0.1); }
-        
-        /* Loading Bar inside button */
         #loading-bar {
             position: absolute; bottom: 0; left: 0; height: 4px; width: 0%; 
             background: #00d2ff; transition: width 0.3s;
         }
 
         #status-log {
-            margin-top: 20px; color: #ff4757; font-size: 0.8rem; 
-            max-width: 80%; text-align: center; line-height: 1.5;
+            margin-top: 20px; color: rgba(255,255,255,0.6); font-size: 0.8rem; 
+            text-align: center; line-height: 1.5; font-family: sans-serif;
         }
 
         /* --- 3. HUD UI --- */
@@ -55,67 +42,52 @@
             position: absolute; inset: 0; pointer-events: none; opacity: 0; transition: opacity 1s;
         }
         
-        /* Preview Window */
         #preview-card {
-            position: absolute; top: 10px; right: 10px;
-            width: 100px; height: 133px;
-            background: #000; border: 1px solid #333;
-            transform: scaleX(-1);
-            pointer-events: auto;
+            position: absolute; top: 10px; right: 10px; width: 100px; height: 133px;
+            background: #000; border: 1px solid #333; transform: scaleX(-1); pointer-events: auto;
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
         }
         #preview-canvas { width: 100%; height: 100%; object-fit: cover; opacity: 0.7; }
 
-        /* Stats */
         .hud-stats {
-            position: absolute; top: 10px; left: 10px;
-            color: rgba(255,255,255,0.5); font-size: 0.7rem;
+            position: absolute; top: 10px; left: 10px; color: rgba(255,255,255,0.5); font-size: 0.7rem;
         }
-        .stat-val { color: #00d2ff; font-weight: bold; }
+        .stat-val { color: #00d2ff; font-weight: bold; transition: color 0.3s; }
+        .stat-val.high { color: #ff4757; }
 
-        /* Bottom Controls */
         #controls {
-            position: absolute; bottom: 30px; width: 100%;
-            display: flex; justify-content: center; gap: 10px;
-            pointer-events: auto;
+            position: absolute; bottom: 30px; width: 100%; display: flex; justify-content: center; gap: 10px; pointer-events: auto;
         }
         
         button.shape-btn {
             background: rgba(20,20,20,0.8); border: 1px solid #333; color: #aaa;
-            padding: 10px 15px; border-radius: 20px; font-size: 0.75rem;
-            cursor: pointer; text-transform: uppercase;
+            padding: 12px 18px; border-radius: 4px; font-size: 0.75rem; font-weight: 700;
+            cursor: pointer; text-transform: uppercase; letter-spacing: 1px;
         }
-        button.shape-btn.active { border-color: #00d2ff; color: #fff; background: rgba(0, 210, 255, 0.2); }
+        button.shape-btn.active { border-color: #00d2ff; color: #fff; background: rgba(0, 210, 255, 0.2); box-shadow: 0 0 15px rgba(0,210,255,0.2); }
 
-        /* Hidden Video */
         #video-source { display: none; }
     </style>
 </head>
 <body>
 
     <div id="start-overlay">
-        <h1 style="color:white; font-weight:100; letter-spacing:5px; margin-bottom:40px;">SYSTEM READY</h1>
-        <button id="engage-btn">
-            INITIALIZE
-            <div id="loading-bar"></div>
-        </button>
-        <div id="status-log">Tap above to grant camera access</div>
+        <h1 style="color:white; font-weight:100; letter-spacing:5px; margin-bottom:20px;">NEURAL CORE</h1>
+        <button id="engage-btn">INITIALIZE SYSTEM<div id="loading-bar"></div></button>
+        <div id="status-log">Open hand to assemble.<br>Close hand to disperse.</div>
     </div>
 
     <div id="canvas-container"></div>
 
     <div id="ui-layer">
         <div class="hud-stats">
-            ROTATION: <span id="rot-disp" class="stat-val">0</span>°<br>
-            ENERGY: <span id="nrg-disp" class="stat-val">0</span>%
+            STATE: <span id="state-disp" class="stat-val">DISPERSED</span><br>
+            TENSION: <span id="nrg-disp" class="stat-val">0</span>%
         </div>
-        
-        <div id="preview-card">
-            <canvas id="preview-canvas"></canvas>
-        </div>
-
+        <div id="preview-card"><canvas id="preview-canvas"></canvas></div>
         <div id="controls">
             <button class="shape-btn active" onclick="setShape('jupiter')">Jupiter</button>
-            <button class="shape-btn" onclick="setShape('dna')">DNA</button>
+            <button class="shape-btn" onclick="setShape('dna')">Real DNA</button>
             <button class="shape-btn" onclick="setShape('saturn')">Saturn</button>
             <button class="shape-btn" onclick="setShape('galaxy')">Galaxy</button>
         </div>
@@ -129,25 +101,25 @@
 
     <script>
         // --- GLOBAL STATE ---
-        const PARTICLE_COUNT = /Android|iPhone|iPad/i.test(navigator.userAgent) ? 3500 : 10000;
+        const isMobile = /Android|iPhone|iPad/i.test(navigator.userAgent);
+        // Increased particle count slightly for better DNA structure
+        const PARTICLE_COUNT = isMobile ? 5000 : 15000;
         let currentState = 'jupiter';
         
-        // 6DoF State
         const handState = {
-            tension: 0,
-            tiltZ: 0,
-            panX: 0,
-            panY: 0
+            tension: 1.0, // Start "closed" (dispersed) state
+            tiltZ: 0, panX: 0, panY: 0, detected: false
         };
 
         // --- 1. THREE.JS ENGINE ---
         const scene = new THREE.Scene();
-        scene.fog = new THREE.FogExp2(0x000000, 0.02);
+        scene.fog = new THREE.FogExp2(0x000000, 0.015);
         
-        const camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
-        camera.position.z = 30;
+        const camera = new THREE.PerspectiveCamera(60, window.innerWidth/window.innerHeight, 0.1, 1000);
+        // Initial camera position (will be controlled by zoom later)
+        camera.position.z = 40;
 
-        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        const renderer = new THREE.WebGLRenderer({ antialias: !isMobile, alpha: true, powerPreference: "high-performance" });
         renderer.setSize(window.innerWidth, window.innerHeight);
         renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
         document.getElementById('canvas-container').appendChild(renderer.domElement);
@@ -156,127 +128,207 @@
         const geometry = new THREE.BufferGeometry();
         const positions = new Float32Array(PARTICLE_COUNT * 3);
         const colors = new Float32Array(PARTICLE_COUNT * 3);
-        const targetPositions = new Float32Array(PARTICLE_COUNT * 3);
+        
+        // New: Store three states for every particle
+        const targetPositions = new Float32Array(PARTICLE_COUNT * 3); // The shape
+        const scatterPositions = new Float32Array(PARTICLE_COUNT * 3); // The dispersed state
         const baseColors = new Float32Array(PARTICLE_COUNT * 3);
 
+        // Initialize Scatter field (wide explosion)
         for(let i=0; i<PARTICLE_COUNT*3; i++) {
-            positions[i] = (Math.random()-0.5)*100;
-            targetPositions[i] = positions[i];
+            // Create a large random sphere distribution for scattering
+            const r = 150 + Math.random() * 100; // Wide radius
+            const theta = Math.random() * Math.PI * 2;
+            const phi = Math.acos(2 * Math.random() - 1);
+            scatterPositions[i] = r * Math.sin(phi) * Math.cos(theta);
+            scatterPositions[i+1] = r * Math.sin(phi) * Math.sin(theta);
+            scatterPositions[i+2] = r * Math.cos(phi);
+            
+            // Start positions equal scatter positions
+            positions[i] = scatterPositions[i]; 
         }
         geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
         geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
 
-        // Texture
         const getTex = () => {
             const c=document.createElement('canvas'); c.width=32; c.height=32;
             const x=c.getContext('2d');
             const g=x.createRadialGradient(16,16,0,16,16,16);
             g.addColorStop(0,'rgba(255,255,255,1)');
+            g.addColorStop(0.3,'rgba(255,255,255,0.6)');
             g.addColorStop(1,'rgba(0,0,0,0)');
             x.fillStyle=g; x.fillRect(0,0,32,32);
             return new THREE.Texture(c);
         };
-        const tex = getTex(); tex.needsUpdate = true;
 
         const material = new THREE.PointsMaterial({
-            size: 0.6, map: tex, vertexColors: true, transparent: true, 
-            opacity: 0.8, blending: THREE.AdditiveBlending, depthWrite: false
+            size: isMobile ? 0.8 : 0.5, map: getTex(), vertexColors: true, transparent: true, 
+            opacity: 1.0, blending: THREE.AdditiveBlending, depthWrite: false
         });
         const particles = new THREE.Points(geometry, material);
         scene.add(particles);
 
-        // --- 3. SHAPE LOGIC ---
+        // --- 3. SHAPE LOGIC (Improved DNA) ---
+        // Helper to safely set particle data at index
+        function setParticleData(idx, x, y, z, r, g, b) {
+            if (idx >= PARTICLE_COUNT) return;
+            const i3 = idx * 3;
+            targetPositions[i3] = x; targetPositions[i3+1] = y; targetPositions[i3+2] = z;
+            baseColors[i3] = r; baseColors[i3+1] = g; baseColors[i3+2] = b;
+        }
+
         window.setShape = (type) => {
             currentState = type;
             document.querySelectorAll('.shape-btn').forEach(b => b.classList.remove('active'));
-            const btn = [...document.querySelectorAll('.shape-btn')].find(b => b.innerText.toLowerCase() === type);
+            const btn = [...document.querySelectorAll('.shape-btn')].find(b => b.innerText.toLowerCase().includes(type));
             if(btn) btn.classList.add('active');
 
+            let pIdx = 0;
             const p = PARTICLE_COUNT;
-            for(let i=0; i<p; i++) {
-                const i3 = i*3;
-                let x,y,z, r,g,b;
 
-                if (type === 'jupiter') {
+            if (type === 'dna') {
+                // --- REAL DOUBLE HELIX ---
+                const turns = 6;
+                const height = 70;
+                const radius = 7;
+                const particlesPerRung = 15; // Density of connection lines
+                
+                // Calculate how many structural steps we can afford
+                const particlesPerStep = 2 + particlesPerRung; // 2 strand points + rung points
+                const totalSteps = Math.floor(p / particlesPerStep);
+
+                for (let i = 0; i < totalSteps; i++) {
+                    const t = (i / totalSteps) * Math.PI * 2 * turns;
+                    const y = (i / totalSteps) * height - (height / 2);
+                    
+                    // Strand A (Cyan/Blue gradient)
+                    const ax = Math.cos(t) * radius;
+                    const az = Math.sin(t) * radius;
+                    const aCol = 0.5 + (y/height)*0.5;
+                    setParticleData(pIdx++, ax, y, az, 0.1, aCol, 1.0);
+
+                    // Strand B (Pink/Red gradient, offset by PI)
+                    const bx = Math.cos(t + Math.PI) * radius;
+                    const bz = Math.sin(t + Math.PI) * radius;
+                    const bCol = 0.5 - (y/height)*0.5;
+                    setParticleData(pIdx++, bx, y, bz, 1.0, bCol*0.3, 0.6);
+
+                    // Rungs (Connecting A to B)
+                    for(let r=0; r<particlesPerRung; r++) {
+                        const lerp = r / particlesPerRung;
+                        const rx = ax * (1-lerp) + bx * lerp;
+                        const rz = az * (1-lerp) + bz * lerp;
+                        // Make rungs slightly chaotic energy
+                        setParticleData(pIdx++, rx+(Math.random()-0.5), y, rz+(Math.random()-0.5), 0.8, 0.9, 1.0);
+                    }
+                }
+
+            } else if (type === 'jupiter') {
+                for(let i=0; i<p; i++) {
                     const phi = Math.acos(-1 + (2 * i) / p);
                     const theta = Math.sqrt(p * Math.PI) * phi;
-                    const rad = 10;
-                    x = rad * Math.cos(theta) * Math.sin(phi);
-                    y = rad * Math.sin(theta) * Math.sin(phi) * 0.9;
-                    z = rad * Math.cos(phi);
-                    const band = Math.sin(y*2.5 + Math.sin(x*0.2));
-                    if(band > 0.5) { r=0.9; g=0.8; b=0.7; }
+                    const rad = 12;
+                    let x = rad * Math.cos(theta) * Math.sin(phi);
+                    let y = rad * Math.sin(theta) * Math.sin(phi) * 0.92;
+                    let z = rad * Math.cos(phi);
+                    const band = Math.sin(y*2.2 + Math.sin(x*0.3));
+                    let r,g,b;
+                    if(band > 0.5) { r=0.9; g=0.85; b=0.7; }
                     else if(band > 0) { r=0.7; g=0.4; b=0.2; }
-                    else if(band > -0.5) { r=0.6; g=0.3; b=0.1; }
-                    else { r=0.5; g=0.5; b=0.5; }
-                } else if (type === 'dna') {
-                    const t = i * 0.05;
-                    const strand = (i % 2 === 0) ? 1 : -1;
-                    const rad = 6;
-                    x = Math.cos(t) * rad + (strand*2);
-                    y = (i/p)*40 - 20;
-                    z = Math.sin(t) * rad;
-                    if(strand===1) { r=0; g=0.8; b=1; } else { r=1; g=0; b=0.5; }
-                } else if (type === 'saturn') {
-                    const ratio = 0.5;
-                    if(i < p*ratio) {
-                        const idx=i; const tot=p*ratio;
-                        const phi = Math.acos(-1 + (2*idx)/tot);
-                        const theta = Math.sqrt(tot*Math.PI)*phi;
-                        x=7*Math.cos(theta)*Math.sin(phi); y=7*Math.sin(theta)*Math.sin(phi)*0.9; z=7*Math.cos(phi);
-                        r=0.9; g=0.8; b=0.5;
-                    } else {
-                        const ang = Math.random()*Math.PI*2; const dist = 9 + Math.random()*10;
-                        x=Math.cos(ang)*dist; z=Math.sin(ang)*dist; y=(Math.random()-0.5)*0.3;
-                        r=0.6; g=0.6; b=0.5;
-                    }
-                } else if (type === 'galaxy') {
-                    const ang = i*0.1; const dist = (i/p)*25; const arms = 5;
-                    const offset = (i%arms)*(Math.PI*2/arms);
-                    x=Math.cos(ang+offset)*dist; z=Math.sin(ang+offset)*dist; y=(Math.random()-0.5)*(3-dist*0.1);
-                    const center = 1-(dist/25); r=0.5+center; g=0.2; b=0.5+center;
+                    else if(band > -0.5) { r=0.55; g=0.3; b=0.15; }
+                    else { r=0.4; g=0.4; b=0.45; }
+                    if(x>4 && x<8 && y>-4 && y<-1 && z>0) { r=0.9; g=0.2; b=0.1; } // Red spot
+                    setParticleData(i, x,y,z, r,g,b);
                 }
-                targetPositions[i3]=x; targetPositions[i3+1]=y; targetPositions[i3+2]=z;
-                baseColors[i3]=r; baseColors[i3+1]=g; baseColors[i3+2]=b;
+            } else if (type === 'saturn') {
+                const ratio = 0.45; // More particles for rings
+                const planetCount = Math.floor(p*ratio);
+                for(let i=0; i<p; i++) {
+                    let x,y,z,r,g,b;
+                    if(i < planetCount) {
+                        const phi = Math.acos(-1 + (2*i)/planetCount);
+                        const theta = Math.sqrt(planetCount*Math.PI)*phi;
+                        x=8*Math.cos(theta)*Math.sin(phi); y=8*Math.sin(theta)*Math.sin(phi)*0.85; z=8*Math.cos(phi);
+                        r=0.8; g=0.7; b=0.5;
+                    } else {
+                        const ang = Math.random()*Math.PI*2; const dist = 11 + Math.random()*12;
+                        x=Math.cos(ang)*dist; z=Math.sin(ang)*dist; y=(Math.random()-0.5)*0.5;
+                        const shade = 0.4 + Math.random()*0.5;
+                        r=shade; g=shade; b=shade*0.8;
+                    }
+                    setParticleData(i, x,y,z, r,g,b);
+                }
+            } else if (type === 'galaxy') {
+                for(let i=0; i<p; i++) {
+                    const ang = i*0.05; const dist = Math.pow(i/p, 0.7)*35; const arms = 3;
+                    const offset = (i%arms)*(Math.PI*2/arms);
+                    const x=Math.cos(ang+offset)*dist; const z=Math.sin(ang+offset)*dist; const y=(Math.random()-0.5)*(4-dist*0.1);
+                    const center = 1-(dist/35); 
+                    setParticleData(i, x,y,z, 0.3+center*0.7, 0.2+center*0.3, 0.5+center*0.5);
+                }
+            }
+
+            // Handle unused particles if DNA generation didn't use exactly all
+            if (pIdx < p && type === 'dna') {
+                 for(let i=pIdx; i<p; i++) {
+                     // Hide them by putting them far away or making them black
+                     setParticleData(i, 0,-1000,0, 0,0,0);
+                 }
             }
         };
-        setShape('jupiter');
+        setShape('jupiter'); // Init shape
 
-        // --- 4. ANIMATION LOOP ---
+        // --- 4. ANIMATION LOOP (The new logic) ---
         const clock = new THREE.Clock();
+        // Base camera distance
+        const baseCamZ = isMobile ? 45 : 35;
+
         function animate() {
             requestAnimationFrame(animate);
             const time = clock.getElapsedTime();
             const pos = geometry.attributes.position.array;
             const col = geometry.attributes.color.array;
 
-            // 6DoF
-            particles.rotation.z += (handState.tiltZ - particles.rotation.z) * 0.1;
-            particles.rotation.y += (handState.panX*1.5 - particles.rotation.y + time*0.1) * 0.05;
-            particles.rotation.x += (handState.panY*1.5 - particles.rotation.x) * 0.05;
+            // --- DYNAMIC ZOOM & STATE ---
+            // Tension 1 = Closed Hand = Dispersed = Camera Far
+            // Tension 0 = Open Hand = Assembled = Camera Close
+            
+            // Smooth the tension value for camera movement
+            const smoothTension = handState.tension;
+            
+            // Calculate target camera Z. Close = baseZ / 1.5, Far = baseZ * 1.5
+            const targetCamZ = baseCamZ * (0.6 + smoothTension * 1.0); 
+            camera.position.z += (targetCamZ - camera.position.z) * 0.05;
 
-            const scale = 1.0 + (handState.tension * 0.3);
+            // 6DoF Scene Rotation
+            particles.rotation.z += (handState.tiltZ - particles.rotation.z) * 0.08;
+            particles.rotation.y += (handState.panX*1.2 - particles.rotation.y + time*0.05) * 0.05;
+            particles.rotation.x += (handState.panY*1.2 - particles.rotation.x) * 0.05;
+
+            // --- PARTICLE DYNAMICS ---
+            // Dispersion Factor: 0 = assembled, 1 = scattered
+            const dispersion = handState.tension;
             
             for(let i=0; i<PARTICLE_COUNT; i++) {
                 const i3 = i*3;
-                let tx = targetPositions[i3] * scale;
-                let ty = targetPositions[i3+1] * scale;
-                let tz = targetPositions[i3+2] * scale;
 
-                if(handState.tension > 0.1) {
-                    const j = handState.tension * 2;
-                    tx+=(Math.random()-0.5)*j; ty+=(Math.random()-0.5)*j; tz+=(Math.random()-0.5)*j;
-                }
+                // Interpolate between Shape Target and Scatter Target based on tension
+                // We use an exponential curve (Math.pow) to make the snapping feel tighter near the center
+                const currentTargetX = targetPositions[i3] * (1 - dispersion) + scatterPositions[i3] * Math.pow(dispersion, 2);
+                const currentTargetY = targetPositions[i3+1] * (1 - dispersion) + scatterPositions[i3+1] * Math.pow(dispersion, 2);
+                const currentTargetZ = targetPositions[i3+2] * (1 - dispersion) + scatterPositions[i3+2] * Math.pow(dispersion, 2);
 
-                const speed = 0.05 + (handState.tension * 0.2);
-                pos[i3] += (tx - pos[i3]) * speed;
-                pos[i3+1] += (ty - pos[i3+1]) * speed;
-                pos[i3+2] += (tz - pos[i3+2]) * speed;
+                // Movement speed - faster when dispersing
+                const speed = 0.03 + (dispersion * 0.05);
 
-                const t = handState.tension;
-                col[i3] = baseColors[i3]*(1-t) + t;
-                col[i3+1] = baseColors[i3+1]*(1-t) + t;
-                col[i3+2] = baseColors[i3+2]*(1-t) + t;
+                pos[i3] += (currentTargetX - pos[i3]) * speed;
+                pos[i3+1] += (currentTargetY - pos[i3+1]) * speed;
+                pos[i3+2] += (currentTargetZ - pos[i3+2]) * speed;
+
+                // Color: Fade to white/energy color when dispersing
+                col[i3] = baseColors[i3]*(1-dispersion*0.8) + (dispersion*0.8);
+                col[i3+1] = baseColors[i3+1]*(1-dispersion*0.8) + (dispersion*0.8);
+                col[i3+2] = baseColors[i3+2]*(1-dispersion*0.8) + (dispersion*1.0); // Blue tint on dispersion
             }
             geometry.attributes.position.needsUpdate = true;
             geometry.attributes.color.needsUpdate = true;
@@ -284,13 +336,15 @@
         }
         animate();
 
-        // --- 5. ROBUST CAMERA ACTIVATION (The Fix) ---
+        // --- 5. TRACKING & INTERACTION ---
         const engageBtn = document.getElementById('engage-btn');
         const loadingBar = document.getElementById('loading-bar');
         const statusLog = document.getElementById('status-log');
         const video = document.getElementById('video-source');
         const previewCanvas = document.getElementById('preview-canvas');
         const previewCtx = previewCanvas.getContext('2d');
+        const stateDisp = document.getElementById('state-disp');
+        const nrgDisp = document.getElementById('nrg-disp');
         let hands;
 
         function updateHandState(results) {
@@ -299,24 +353,45 @@
             previewCtx.drawImage(results.image, 0, 0, previewCanvas.width, previewCanvas.height);
 
             if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+                handState.detected = true;
                 const lm = results.multiHandLandmarks[0];
                 drawConnectors(previewCtx, lm, HAND_CONNECTIONS, {color: '#00d2ff', lineWidth: 2});
                 
-                // Tension
+                // Tension Calc (Reversed logic internally for dispersion)
                 const d = Math.sqrt(Math.pow(lm[12].x-lm[0].x, 2) + Math.pow(lm[12].y-lm[0].y, 2));
-                handState.tension = Math.max(0, Math.min(1, 1-((d-0.15)/0.3)));
+                // Map distance to tension: Short distance = High tension (1.0), Long distance = Low tension (0.0)
+                let rawTension = 1 - Math.min(1, Math.max(0, (d - 0.15) / 0.35));
                 
-                // Rotation
+                // Smooth tension
+                handState.tension += (rawTension - handState.tension) * 0.15;
+
+                // Rotation & Pan
                 handState.tiltZ = -Math.atan2(lm[9].x-lm[0].x, lm[9].y-lm[0].y);
-                
-                // Pan
                 handState.panX = (lm[9].x - 0.5)*2; handState.panY = (lm[9].y - 0.5)*2;
 
-                document.getElementById('rot-disp').innerText = Math.round(handState.tiltZ * 57);
-                document.getElementById('nrg-disp').innerText = Math.round(handState.tension * 100);
+                // HUD Updates
+                const tensionPercent = Math.round(handState.tension * 100);
+                nrgDisp.innerText = tensionPercent;
+                
+                if (tensionPercent > 80) {
+                    stateDisp.innerText = "DISPERSED";
+                    stateDisp.classList.add('high');
+                    nrgDisp.parentElement.classList.add('high');
+                } else if (tensionPercent < 20) {
+                    stateDisp.innerText = "FOCUSED";
+                    stateDisp.classList.remove('high');
+                    nrgDisp.parentElement.classList.remove('high');
+                } else {
+                     stateDisp.innerText = "TRANSITION";
+                     stateDisp.classList.remove('high');
+                }
+
             } else {
-                handState.tension *= 0.9;
-                handState.panX *= 0.9;
+                handState.detected = false;
+                // Default back to dispersed state if hand lost
+                handState.tension += (1.0 - handState.tension) * 0.05; 
+                stateDisp.innerText = "SEARCHING";
+                stateDisp.classList.remove('high');
             }
         }
 
@@ -328,55 +403,43 @@
         }
 
         engageBtn.addEventListener('click', async () => {
-            engageBtn.disabled = true;
-            statusLog.innerText = "Requesting Camera Access...";
+            engageBtn.style.pointerEvents = 'none';
+            statusLog.innerHTML = "Establishing neural link...<br>(Allow camera access)";
             statusLog.style.color = "#00d2ff";
             
             try {
-                // 1. GET CAMERA PERMISSION FIRST
-                // This call must be the direct result of the click
                 const stream = await navigator.mediaDevices.getUserMedia({
-                    video: { facingMode: "user", width: { ideal: 640 }, height: { ideal: 480 } }
+                    video: { facingMode: "user", width: { ideal: 480 }, height: { ideal: 640 } }
                 });
-                
                 video.srcObject = stream;
                 
-                // 2. LOAD AI NOW
-                statusLog.innerText = "Camera Access Granted.\nDownloading Neural Network...";
+                statusLog.innerHTML = "Camera linked.<br>Calibrating AI models...";
                 loadingBar.style.width = "50%";
                 
                 hands = new Hands({locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`});
                 hands.setOptions({
-                    maxNumHands: 1,
-                    modelComplexity: 0, // Lite mode for speed
-                    minDetectionConfidence: 0.5,
-                    minTrackingConfidence: 0.5
+                    maxNumHands: 1, modelComplexity: isMobile ? 0 : 1, 
+                    minDetectionConfidence: 0.5, minTrackingConfidence: 0.5
                 });
                 hands.onResults(updateHandState);
                 
                 loadingBar.style.width = "100%";
-                statusLog.innerText = "System Online.";
+                statusLog.innerText = "Systems Online.";
 
-                // 3. START
                 video.onloadedmetadata = () => {
                     video.play();
                     processVideo();
-                    
-                    // Fade out start screen
                     document.getElementById('start-overlay').style.opacity = '0';
-                    setTimeout(() => {
-                        document.getElementById('start-overlay').style.display = 'none';
-                    }, 500);
-                    
+                    setTimeout(() => { document.getElementById('start-overlay').style.display = 'none'; }, 500);
                     document.getElementById('ui-layer').style.opacity = '1';
                 };
 
             } catch (err) {
                 console.error(err);
-                statusLog.innerText = "ERROR: " + err.message + "\nCheck browser permissions (HTTPS required).";
+                statusLog.innerHTML = `CONNECTION FAILED<br>${err.message}<br>Check browser permissions.`;
                 statusLog.style.color = "#ff4757";
-                engageBtn.innerText = "RETRY";
-                engageBtn.disabled = false;
+                engageBtn.innerText = "RETRY LINK";
+                engageBtn.style.pointerEvents = 'auto';
                 loadingBar.style.width = "0%";
             }
         });
