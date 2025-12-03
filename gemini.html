@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>AI Particles - Mobile Ready</title>
+    <style>
+        /* Block elastic scrolling on iOS */
+        body { 
+            margin: 0; 
+            overflow: hidden; 
+            background-color: #050505; 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            touch-action: none; /* Prevent zoom/scroll */
+        }
+        
+        /* --- Start Screen (Full Overlay) --- */
+        #start-screen {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            color: white;
+            text-align: center;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        
+        #start-btn {
+            padding: 18px 40px;
+            font-size: 1.1rem;
+            background: #00d2d3;
+            border: none;
+            border-radius: 50px;
+            color: #000;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 4px 20px rgba(0, 210, 211, 0.4);
+            margin-top: 30px;
+            width: 80%;
+            max-width: 300px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        #start-btn:active { transform: scale(0.95); }
+
+        /* --- Main UI (Glassmorphism) --- */
+        #ui-container {
+            position: absolute;
+            top: 20px; left: 20px; right: 20px;
+            max-width: 400px;
+            background: rgba(20, 20, 20, 0.6);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            padding: 15px;
+            border-radius: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: white;
+            z-index: 100;
+            display: none; /* Hidden initially */
+            pointer-events: auto;
+        }
+
+        /* Mobile Layout Adjustments */
+        .btn-grid { 
+            display: flex; 
+            flex-wrap: wrap; 
+            gap: 8px; 
+            justify-content: space-between; 
+        }
+        button.shape-btn {
+            flex: 1 0 30%; /* 3 buttons per row */
+            background: rgba(255, 255, 255, 0.1);
+            border: none;
+            color: white;
+            padding: 10px 5px;
+            border-radius: 8px;
+            font-size: 0.75rem;
+        }
+        button.shape-btn.active { background: #00d2d3; color: black; font-weight: bold; }
+
+        input[type="color"] { width: 100%; height: 35px; border: none; background: none; margin-top: 10px; }
+
+        #status { font-size: 0.75rem; color: #fab1a0; margin-top: 10px; display: flex; align-items: center; gap: 6px; }
+        .dot { width: 8px; height: 8px; background: #ff7675; border-radius: 50%; }
+        .dot.active { background: #00b894; box-shadow: 0 0 5px #00b894; }
+
+        /* Hidden Video */
+        #webcam-video {
+            position: absolute; bottom: 10px; right: 10px;
+            width: 120px; height: 160px; /* Portrait aspect */
+            border-radius: 12px;
+            opacity: 0.5;
+            z-index: 50;
+            object-fit: cover;
+            transform: scaleX(-1);
+            display: none;
+        }
+        
+        #error-log { margin-top: 20px; color: #ff9f43; font-size: 0.8rem; max-width: 300px; line-height: 1.4; }
+    </style>
+</head>
+<body>
+
+    <div id="start-screen">
+        <h1 style="margin:0; font-size:1.8rem;">Particle Flow</h1>
+        <p style="opacity:0.8; font-size:0.9rem; margin-top:10px;">
+            AI Hand Control<br>Works on iOS & Android
+        </p>
+        <button id="start-btn">Tap to Start</button>
+        <div id="loading-text" style="margin-top:15px; font-size:0.8rem; opacity:0.6;"></div>
+        <div id="error-log"></div>
+    </div>
+
+    <div id="ui-container">
+        <div class="btn-grid">
+            <button class="shape-btn active" onclick="setShape('heart')">Heart</button>
+            <button class="shape-btn" onclick="setShape('saturn')">Saturn</button>
+            <button class="shape-btn" onclick="setShape('flower')">Lotus</button>
+            <button class="shape-btn" onclick="setShape('spiral')">Galaxy</button>
+            <button class="shape-btn" onclick="setShape('fireworks')">Burst</button>
+            <button class="shape-btn" onclick="setShape('sphere')">Sphere</button>
+        </div>
+        <input type="color" id="colorPicker" value="#00d2d3">
+        <div id="status">
+            <span class="dot" id="status-dot"></span>
+            <span id="status-text">Waiting for hand...</span>
+        </div>
+    </div>
+
+    <video id="webcam-video" playsinline webkit-playsinline muted autoplay></video>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+
+    <script>
+        // --- 1. DETECT MOBILE ---
+        const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+        
+        // --- 2. THREE.JS SETUP ---
+        const scene = new THREE.Scene();
+        scene.fog = new THREE.FogExp2(0x050505, 0.02);
+        
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.z = isMobile ? 40 : 30; // Move camera back slightly on mobile
+
+        const renderer = new THREE.WebGLRenderer({ antialias: !isMobile, alpha: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        // Cap pixel ratio at 2.0 for performance (Retina screens = 3.0+ which kills fps)
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)); 
+        document.body.appendChild(renderer.domElement);
+
+        // --- 3. PARTICLE SYSTEM ---
+        // Reduce count on mobile for FPS stability
+        const PARTICLE_COUNT = isMobile ? 3500 : 6000;
+        const geometry = new THREE.BufferGeometry();
+        const positions = new Float32Array(PARTICLE_COUNT * 3);
+        const targetPositions = new Float32Array(PARTICLE_COUNT * 3);
+        
+        for(let i=0; i<PARTICLE_COUNT*3; i++) {
+            positions[i] = (Math.random()-0.5)*50;
+            targetPositions[i] = positions[i];
+        }
+        geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+
+        const getTexture = () => {
+            const canvas = document.createElement('canvas');
+            canvas.width=32; canvas.height=32;
+            const ctx=canvas.getContext('2d');
+            const g=ctx.createRadialGradient(16,16,0,16,16,16);
+            g.addColorStop(0,'rgba(255,255,255,1)');
+            g.addColorStop(1,'rgba(0,0,0,0)');
+            ctx.fillStyle=g; ctx.fillRect(0,0,32,32);
+            return new THREE.Texture(canvas);
+        };
+
+        const material = new THREE.PointsMaterial({
+            size: isMobile ? 0.8 : 0.6, // Slightly larger dots on mobile
+            map: getTexture(),
+            transparent: true,
+            opacity: 0.8,
+            color: 0x00d2d3,
+            blending: THREE.AdditiveBlending,
+            depthWrite: false
+        });
+        
+        const particles = new THREE.Points(geometry, material);
+        scene.add(particles);
+
+        // --- 4. SHAPE LOGIC ---
+        // (Simplified math for mobile performance)
+        function getPointHeart(i) {
+            const t = (i/PARTICLE_COUNT)*Math.PI*20;
+            const x = 16*Math.pow(Math.sin(t),3);
+            const y = 13*Math.cos(t)-5*Math.cos(2*t)-2*Math.cos(3*t)-Math.cos(4*t);
+            return {x:x*0.5, y:y*0.5, z:(Math.random()-0.5)*5};
+        }
+        
+        function getPointSphere(i) {
+            const phi = Math.acos(-1+(2*i)/PARTICLE_COUNT);
+            const theta = Math.sqrt(PARTICLE_COUNT*Math.PI)*phi;
+            const r = 10;
+            return { x:r*Math.cos(theta)*Math.sin(phi), y:r*Math.sin(theta)*Math.sin(phi), z:r*Math.cos(phi) };
+        }
+
+        function getPointSaturn(i) {
+            if(i < PARTICLE_COUNT*0.7) {
+                const p = getPointSphere(i);
+                return {x:p.x*0.6, y:p.y*0.6, z:p.z*0.6};
+            }
+            const angle = i * 0.1;
+            const r = 12 + Math.random()*5;
+            return { x:Math.cos(angle)*r, y:(Math.random()-0.5), z:Math.sin(angle)*r };
+        }
+
+        const state = { tension: 0, scaleMod: 1.0 };
+        
+        window.setShape = (type) => {
+            document.querySelectorAll('.shape-btn').forEach(b => b.classList.remove('active'));
+            if(event) event.target.classList.add('active');
+            
+            for(let i=0; i<PARTICLE_COUNT; i++) {
+                let p;
+                if(type==='heart') p=getPointHeart(i);
+                else if(type==='saturn') p=getPointSaturn(i);
+                else if(type==='flower') { // Simple Lotus
+                    const angle = i * 137.5 * (Math.PI/180);
+                    const r = 0.6 * Math.sqrt(i);
+                    p = {x:r*Math.cos(angle)*0.6, y:(r*r*0.05)-8, z:r*Math.sin(angle)*0.6};
+                }
+                else if(type==='spiral') { // Galaxy
+                    const t = i*0.02; 
+                    p = {x:t*Math.cos(t*3), y:(i/PARTICLE_COUNT)*20-10, z:t*Math.sin(t*3)};
+                }
+                else if(type==='fireworks') { // Burst
+                    const theta=Math.random()*Math.PI*2, phi=Math.acos((Math.random()*2)-1), r=Math.random()*15;
+                    p = {x:r*Math.sin(phi)*Math.cos(theta), y:r*Math.sin(phi)*Math.sin(theta), z:r*Math.cos(phi)};
+                }
+                else p=getPointSphere(i);
+                
+                targetPositions[i*3]=p.x; targetPositions[i*3+1]=p.y; targetPositions[i*3+2]=p.z;
+            }
+        };
+        setShape('heart');
+
+        document.getElementById('colorPicker').addEventListener('input', e => material.color.set(e.target.value));
+
+
+        // --- 5. MOBILE CAMERA SETUP ---
+        const videoElement = document.getElementById('webcam-video');
+        const startBtn = document.getElementById('start-btn');
+        const errorLog = document.getElementById('error-log');
+        let hands;
+        let isCameraRunning = false;
+        let isProcessing = false;
+
+        async function startCamera() {
+            startBtn.disabled = true;
+            startBtn.innerText = "INITIALIZING...";
+            
+            try {
+                // 1. Setup MediaPipe
+                hands = new Hands({locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`});
+                hands.setOptions({
+                    maxNumHands: 1,
+                    modelComplexity: 0, // 0 = Fast (Good for Mobile), 1 = Accurate
+                    minDetectionConfidence: 0.5,
+                    minTrackingConfidence: 0.5
+                });
+                hands.onResults(onResults);
+
+                // 2. Mobile Constraints
+                const constraints = {
+                    audio: false,
+                    video: {
+                        facingMode: "user", // Front camera
+                        width: { ideal: 480 }, // Lower resolution for higher FPS on mobile
+                        height: { ideal: 640 }
+                    }
+                };
+
+                // 3. Get Stream
+                const stream = await navigator.mediaDevices.getUserMedia(constraints);
+                videoElement.srcObject = stream;
+                
+                // 4. Play (Required for iOS)
+                await videoElement.play();
+                
+                isCameraRunning = true;
+                
+                // UI Switch
+                document.getElementById('start-screen').style.display = 'none';
+                document.getElementById('ui-container').style.display = 'block';
+                document.getElementById('webcam-video').style.display = 'block';
+
+            } catch (err) {
+                console.error(err);
+                startBtn.disabled = false;
+                startBtn.innerText = "TRY AGAIN";
+                errorLog.innerHTML = `<strong>Error:</strong> ${err.message}<br>
+                iOS Users: Ensure you are in Safari (not an in-app browser) and have allowed camera access.`;
+            }
+        }
+
+        startBtn.addEventListener('click', startCamera);
+        // Also support touchstart for faster mobile response
+        startBtn.addEventListener('touchstart', (e) => { e.preventDefault(); startCamera(); });
+
+        function onResults(results) {
+            isProcessing = false;
+            if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+                document.getElementById('status-dot').classList.add('active');
+                document.getElementById('status-text').innerText = "Active";
+                
+                const lm = results.multiHandLandmarks[0];
+                const wrist = lm[0];
+                const index = lm[8];
+                const d = Math.sqrt(Math.pow(index.x-wrist.x, 2) + Math.pow(index.y-wrist.y, 2));
+                
+                // Mobile cameras often have different FOV, so we adjust thresholds
+                let t = 0;
+                if(d < 0.2) t = 1;
+                else if(d > 0.4) t = 0;
+                else t = 1 - ((d - 0.2)/0.2);
+                state.tension = t;
+            } else {
+                document.getElementById('status-dot').classList.remove('active');
+                state.tension *= 0.9;
+            }
+        }
+
+        // --- 6. ANIMATION LOOP ---
+        const clock = new THREE.Clock();
+
+        async function animate() {
+            requestAnimationFrame(animate);
+            
+            // Limit AI checks to every 3rd frame on mobile to save battery/heat
+            // or just ensure we don't stack calls
+            if(isCameraRunning && !isProcessing && videoElement.readyState >= 2) {
+                isProcessing = true;
+                // Send frame to AI
+                await hands.send({image: videoElement});
+            }
+
+            const time = clock.getElapsedTime();
+            
+            // Physics
+            const targetScale = 1.0 - (state.tension * 0.6);
+            state.scaleMod += (targetScale - state.scaleMod) * 0.1;
+
+            particles.rotation.y += 0.003;
+            if(state.tension > 0.5) {
+                particles.rotation.z = (Math.random()-0.5)*0.1;
+            } else {
+                particles.rotation.z *= 0.9;
+            }
+
+            const pos = geometry.attributes.position.array;
+            
+            // Unroll loop slightly for perf? JS engines handle this well now.
+            // Just simple iteration.
+            for(let i=0; i<PARTICLE_COUNT; i++) {
+                const ix=i*3, iy=i*3+1, iz=i*3+2;
+                
+                const tx = targetPositions[ix] * state.scaleMod;
+                const ty = targetPositions[iy] * state.scaleMod;
+                const tz = targetPositions[iz] * state.scaleMod;
+                
+                const noise = Math.sin(time + i*0.1) * 0.1;
+                const speed = state.tension > 0.8 ? 0.3 : 0.05;
+                
+                pos[ix] += (tx + noise - pos[ix]) * speed;
+                pos[iy] += (ty + noise - pos[iy]) * speed;
+                pos[iz] += (tz + noise - pos[iz]) * speed;
+            }
+            
+            geometry.attributes.position.needsUpdate = true;
+            renderer.render(scene, camera);
+        }
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        animate();
+
+    </script>
+</body>
+</html>
