@@ -3,180 +3,205 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Particle Core | Fixed</title>
+    <title>Particle Core | Fast Boot</title>
     <style>
-        /* --- CORE --- */
+        /* --- RESET & BASE --- */
         body { 
             margin: 0; overflow: hidden; background-color: #000; 
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-family: 'Courier New', Courier, monospace; /* Tech look */
             touch-action: none; user-select: none; -webkit-user-select: none;
         }
 
-        /* --- UI LAYER --- */
-        #ui-layer {
-            position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%);
-            width: 95%; max-width: 500px;
-            background: rgba(10, 10, 10, 0.6);
-            backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
-            padding: 15px; border-radius: 24px;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            display: none; z-index: 100;
+        /* --- 3D CONTAINER --- */
+        #canvas-container { position: absolute; inset: 0; z-index: 0; }
+
+        /* --- SINGLE LAYOUT UI (HUD) --- */
+        #hud-layer {
+            position: absolute; inset: 0; z-index: 10; pointer-events: none;
+            display: flex; flex-direction: column; justify-content: space-between;
         }
 
-        .btn-row { 
-            display: flex; gap: 8px; overflow-x: auto; padding-bottom: 5px; 
-            -webkit-overflow-scrolling: touch; scrollbar-width: none;
+        /* Top Bar */
+        .hud-top {
+            padding: 20px; display: flex; justify-content: space-between; align-items: flex-start;
         }
-        .btn-row::-webkit-scrollbar { display: none; }
         
-        button.shape-btn {
-            background: rgba(255, 255, 255, 0.08); border: none; color: rgba(255,255,255,0.6);
-            padding: 12px 20px; border-radius: 12px; font-size: 0.8rem; white-space: nowrap;
-            transition: all 0.2s; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;
-        }
-        button.shape-btn.active { 
-            background: #ffffff; color: #000000; box-shadow: 0 0 15px rgba(255,255,255,0.3);
-        }
-
-        /* --- PREVIEW WINDOW --- */
+        /* Preview Window (Top Right) */
         #preview-card {
-            position: absolute; top: 20px; right: 20px;
-            width: 120px; height: 160px;
-            background: #000; border-radius: 16px;
-            border: 1px solid rgba(255, 255, 255, 0.15);
-            overflow: hidden; display: none; z-index: 90;
-            transform: scaleX(-1);
+            width: 100px; height: 133px; 
+            background: rgba(0, 20, 40, 0.5); 
+            border: 1px solid rgba(0, 210, 255, 0.3);
+            border-radius: 8px; overflow: hidden;
+            transform: scaleX(-1); /* Mirror */
+            opacity: 0; transition: opacity 0.5s;
+            pointer-events: auto;
         }
-        #preview-canvas { width: 100%; height: 100%; object-fit: cover; opacity: 0.8; }
-        
-        #gesture-stats {
-            position: absolute; bottom: 0; left: 0; width: 100%;
+        #preview-canvas { width: 100%; height: 100%; object-fit: cover; }
+
+        /* Bottom Controls */
+        .hud-bottom {
+            padding: 20px; pointer-events: auto;
             background: linear-gradient(to top, rgba(0,0,0,0.9), transparent);
-            color: #00d2ff; font-size: 0.6rem; font-family: monospace;
-            padding: 5px; box-sizing: border-box; transform: scaleX(-1);
-            pointer-events: none;
+            display: flex; flex-direction: column; align-items: center; gap: 15px;
         }
 
-        /* --- START SCREEN --- */
-        #start-screen {
-            position: absolute; inset: 0;
-            background: radial-gradient(circle at center, #1a1a2e 0%, #000000 100%);
-            display: flex; flex-direction: column; align-items: center; justify-content: center;
-            z-index: 1000; transition: opacity 0.5s;
+        /* Shape Buttons */
+        .btn-group {
+            display: flex; gap: 10px; overflow-x: auto; max-width: 100%; padding-bottom: 5px;
+            -webkit-overflow-scrolling: touch;
         }
-        #start-btn {
-            padding: 20px 50px; font-size: 1.2rem;
-            background: linear-gradient(90deg, #00d2ff, #3a7bd5);
-            border: none; border-radius: 50px; color: white; font-weight: 700;
-            cursor: pointer; box-shadow: 0 0 30px rgba(0, 210, 255, 0.4);
-            text-transform: uppercase; letter-spacing: 2px;
+        .btn-group::-webkit-scrollbar { display: none; }
+
+        button.shape-btn {
+            background: rgba(255, 255, 255, 0.1); 
+            border: 1px solid rgba(255,255,255,0.2); 
+            color: #fff; padding: 10px 18px; border-radius: 20px;
+            font-size: 0.75rem; font-weight: bold; text-transform: uppercase;
+            white-space: nowrap; cursor: pointer; transition: 0.2s;
         }
-        #status-msg { margin-top: 20px; color: #aaa; font-size: 0.9rem; font-family: monospace; }
-        #error-log { color: #ff4757; margin-top: 10px; font-size: 0.8rem; max-width: 80%; text-align: center; }
+        button.shape-btn.active {
+            background: #00d2ff; color: #000; box-shadow: 0 0 15px rgba(0,210,255,0.4); border-color: #00d2ff;
+        }
+
+        /* --- CENTRAL ACTIVATE BUTTON --- */
+        #center-overlay {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            text-align: center; pointer-events: auto; z-index: 20;
+        }
+        
+        #activate-btn {
+            background: rgba(0, 210, 255, 0.1);
+            color: #00d2ff;
+            border: 2px solid #00d2ff;
+            padding: 20px 40px;
+            font-size: 1.2rem;
+            letter-spacing: 3px;
+            font-weight: bold;
+            cursor: pointer;
+            text-transform: uppercase;
+            box-shadow: 0 0 20px rgba(0, 210, 255, 0.2);
+            transition: all 0.3s;
+            clip-path: polygon(10% 0, 100% 0, 100% 70%, 90% 100%, 0 100%, 0 30%);
+        }
+        #activate-btn:hover { background: #00d2ff; color: #000; box-shadow: 0 0 40px rgba(0, 210, 255, 0.6); }
+        #activate-btn:active { transform: scale(0.95); }
+
+        #status-text { margin-top: 15px; color: rgba(255,255,255,0.5); font-size: 0.8rem; }
+        
+        /* Stats */
+        .stats { font-size: 0.7rem; color: #00d2ff; text-align: left; line-height: 1.5; }
 
         /* Hidden Video */
-        #input-video { display: none; }
+        #video-feed { display: none; }
     </style>
 </head>
 <body>
 
-    <div id="start-screen">
-        <h1 style="color:white; font-weight:200; letter-spacing:4px; margin-bottom:10px;">PARTICLE CORE</h1>
-        <p style="color:rgba(255,255,255,0.4); font-size:0.8rem; margin-bottom:40px;">6DoF Hand Tracking</p>
-        <button id="start-btn">ENGAGE SYSTEM</button>
-        <div id="status-msg"></div>
-        <div id="error-log"></div>
-    </div>
+    <div id="canvas-container"></div>
 
-    <div id="preview-card">
-        <canvas id="preview-canvas"></canvas>
-        <div id="gesture-stats">
-            ROT: <span id="rot-val">0</span>°<br>
-            TEN: <span id="ten-val">0</span>%
+    <div id="hud-layer">
+        
+        <div class="hud-top">
+            <div class="stats">
+                <div>SYSTEM: <span id="sys-status">STANDBY</span></div>
+                <div>ROTATION: <span id="rot-val">0</span>°</div>
+                <div>ENERGY: <span id="ten-val">0</span>%</div>
+            </div>
+            
+            <div id="preview-card">
+                <canvas id="preview-canvas"></canvas>
+            </div>
+        </div>
+
+        <div id="center-overlay">
+            <button id="activate-btn">INITIALIZE</button>
+            <div id="status-text">tap to allow camera access</div>
+        </div>
+
+        <div class="hud-bottom" id="controls" style="opacity: 0.5; pointer-events: none;">
+            <div class="btn-group">
+                <button class="shape-btn active" onclick="setShape('jupiter')">Jupiter</button>
+                <button class="shape-btn" onclick="setShape('dna')">DNA</button>
+                <button class="shape-btn" onclick="setShape('saturn')">Saturn</button>
+                <button class="shape-btn" onclick="setShape('galaxy')">Galaxy</button>
+                <button class="shape-btn" onclick="setShape('sphere')">Core</button>
+            </div>
         </div>
     </div>
 
-    <div id="ui-layer">
-        <div class="btn-row">
-            <button class="shape-btn active" onclick="setShape('jupiter')">Jupiter</button>
-            <button class="shape-btn" onclick="setShape('dna')">DNA</button>
-            <button class="shape-btn" onclick="setShape('saturn')">Saturn</button>
-            <button class="shape-btn" onclick="setShape('galaxy')">Galaxy</button>
-            <button class="shape-btn" onclick="setShape('sphere')">Core</button>
-        </div>
-    </div>
-
-    <video id="input-video" playsinline webkit-playsinline muted autoplay></video>
+    <video id="video-feed" playsinline webkit-playsinline muted autoplay></video>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
 
     <script>
-        // --- 1. CONFIG ---
+        // --- 1. CONFIGURATION ---
         const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
         const PARTICLE_COUNT = isMobile ? 3500 : 12000;
-        let currentState = 'jupiter';
         
+        // Interaction State (6DoF)
         const handState = {
             tension: 0,
             tiltZ: 0,
             panX: 0,
             panY: 0,
-            detected: false
+            active: false
         };
 
-        // --- 2. THREE.JS ---
+        let currentState = 'jupiter';
+
+        // --- 2. THREE.JS ENGINE (Runs immediately for visuals) ---
         const scene = new THREE.Scene();
         scene.fog = new THREE.FogExp2(0x000000, 0.02);
+
         const camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
         camera.position.z = isMobile ? 35 : 28;
-        
+
         const renderer = new THREE.WebGLRenderer({ antialias: !isMobile, alpha: true, powerPreference: "high-performance" });
         renderer.setSize(window.innerWidth, window.innerHeight);
         renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-        document.body.appendChild(renderer.domElement);
+        document.getElementById('canvas-container').appendChild(renderer.domElement);
 
-        // --- 3. PARTICLES ---
+        // --- 3. PARTICLE SYSTEM ---
         const geometry = new THREE.BufferGeometry();
         const positions = new Float32Array(PARTICLE_COUNT * 3);
         const colors = new Float32Array(PARTICLE_COUNT * 3);
         const targetPositions = new Float32Array(PARTICLE_COUNT * 3);
         const baseColors = new Float32Array(PARTICLE_COUNT * 3);
 
-        for(let i=0; i<PARTICLE_COUNT; i++) {
-            const i3 = i*3;
-            positions[i3] = (Math.random()-0.5)*100;
-            positions[i3+1] = (Math.random()-0.5)*100;
-            positions[i3+2] = (Math.random()-0.5)*100;
-            targetPositions[i3] = positions[i3];
+        // Init Random
+        for(let i=0; i<PARTICLE_COUNT*3; i++) {
+            positions[i] = (Math.random()-0.5)*100;
+            targetPositions[i] = positions[i]; // Start exploded
+            baseColors[i] = 0.5;
         }
-
         geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
         geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
 
+        // Texture
         const getTexture = () => {
             const c = document.createElement('canvas'); c.width=32; c.height=32;
             const ctx = c.getContext('2d');
             const g = ctx.createRadialGradient(16,16,0,16,16,16);
             g.addColorStop(0, 'rgba(255,255,255,1)');
-            g.addColorStop(0.4, 'rgba(255,255,255,0.2)');
             g.addColorStop(1, 'rgba(0,0,0,0)');
             ctx.fillStyle=g; ctx.fillRect(0,0,32,32);
             return new THREE.Texture(c);
         };
-        const tex = getTexture(); tex.needsUpdate = true;
-
         const material = new THREE.PointsMaterial({
             size: isMobile ? 0.7 : 0.45, 
-            map: tex, vertexColors: true, transparent: true, opacity: 0.9,
-            blending: THREE.AdditiveBlending, depthWrite: false
+            map: getTexture(), 
+            vertexColors: true, 
+            transparent: true, 
+            opacity: 0.8, 
+            blending: THREE.AdditiveBlending, 
+            depthWrite: false
         });
-
         const particles = new THREE.Points(geometry, material);
         scene.add(particles);
 
-        // --- 4. SHAPES ---
+        // --- 4. SHAPE LOGIC ---
         window.setShape = (type) => {
             currentState = type;
             document.querySelectorAll('.shape-btn').forEach(b => b.classList.remove('active'));
@@ -188,6 +213,7 @@
                 const i3 = i*3;
                 let x,y,z, r,g,b;
 
+                // --- SHAPE MATH ---
                 if (type === 'jupiter') {
                     const phi = Math.acos(-1 + (2 * i) / p);
                     const theta = Math.sqrt(p * Math.PI) * phi;
@@ -195,27 +221,201 @@
                     x = rad * Math.cos(theta) * Math.sin(phi);
                     y = rad * Math.sin(theta) * Math.sin(phi) * 0.9;
                     z = rad * Math.cos(phi);
-                    const band = Math.sin(y * 2.5 + Math.sin(x*0.2));
+                    // Bands
+                    const band = Math.sin(y*2.5 + Math.sin(x*0.2));
                     if(band > 0.5) { r=0.9; g=0.8; b=0.7; }
                     else if(band > 0) { r=0.7; g=0.4; b=0.2; }
                     else if(band > -0.5) { r=0.6; g=0.3; b=0.1; }
                     else { r=0.5; g=0.5; b=0.5; }
-                    if(x > 3 && x < 7 && y > -3 && y < -1 && z > 0) { r=1.0; g=0.2; b=0.1; }
+                    // Red Spot
+                    if(x>3 && x<7 && y>-3 && y<-1 && z>0) { r=1.0; g=0.2; b=0.1; }
 
                 } else if (type === 'dna') {
                     const t = i * 0.05;
                     const strand = (i % 2 === 0) ? 1 : -1;
                     const rad = 6;
-                    x = Math.cos(t) * rad + (strand * 2);
-                    y = (i / p) * 40 - 20;
+                    x = Math.cos(t) * rad + (strand*2);
+                    y = (i/p)*40 - 20;
                     z = Math.sin(t) * rad;
-                    if(strand === 1) { r=0; g=0.8; b=1; } else { r=1; g=0; b=0.5; }
-                    if (Math.random() > 0.92) { x*=0.1; z*=0.1; r=1; g=1; b=1; }
+                    if(strand===1) { r=0; g=0.8; b=1; } else { r=1; g=0; b=0.5; }
+                    if(Math.random()>0.92) { x*=0.1; z*=0.1; r=1; g=1; b=1; }
 
                 } else if (type === 'saturn') {
                     const ratio = 0.5;
-                    if(i < p * ratio) {
+                    if(i < p*ratio) {
                         const idx = i; const total = p*ratio;
                         const phi = Math.acos(-1 + (2*idx)/total);
                         const theta = Math.sqrt(total*Math.PI)*phi;
-                        x=7*Math.cos(theta)*Math.sin(phi); y=7*Math.sin(
+                        x=7*Math.cos(theta)*Math.sin(phi); y=7*Math.sin(theta)*Math.sin(phi)*0.9; z=7*Math.cos(phi);
+                        r=0.9; g=0.8; b=0.5;
+                    } else {
+                        const ang = Math.random()*Math.PI*2; const dist = 9 + Math.random()*10;
+                        x=Math.cos(ang)*dist; z=Math.sin(ang)*dist; y=(Math.random()-0.5)*0.3;
+                        r=0.6; g=0.6; b=0.5;
+                    }
+
+                } else if (type === 'galaxy') {
+                    const ang = i*0.1; const dist = (i/p)*25; const arms = 5;
+                    const offset = (i%arms)*(Math.PI*2/arms);
+                    x=Math.cos(ang+offset)*dist; z=Math.sin(ang+offset)*dist; y=(Math.random()-0.5)*(3-dist*0.1);
+                    const center = 1-(dist/25); r=0.5+center; g=0.2; b=0.5+center;
+
+                } else { // Sphere
+                    const phi = Math.acos(-1+(2*i)/p); const theta = Math.sqrt(p*Math.PI)*phi;
+                    x=10*Math.cos(theta)*Math.sin(phi); y=10*Math.sin(theta)*Math.sin(phi); z=10*Math.cos(phi);
+                    r=0.1; g=0.8; b=0.9;
+                }
+
+                targetPositions[i3]=x; targetPositions[i3+1]=y; targetPositions[i3+2]=z;
+                baseColors[i3]=r; baseColors[i3+1]=g; baseColors[i3+2]=b;
+            }
+        };
+
+        setShape('jupiter'); // Initial Shape
+
+        // --- 5. ANIMATION LOOP ---
+        const clock = new THREE.Clock();
+
+        function animate() {
+            requestAnimationFrame(animate);
+            const time = clock.getElapsedTime();
+            const pos = geometry.attributes.position.array;
+            const col = geometry.attributes.color.array;
+
+            // 6DoF Rotation
+            particles.rotation.z += (handState.tiltZ - particles.rotation.z) * 0.1;
+            particles.rotation.y += (handState.panX * 1.5 - particles.rotation.y + (time*0.1)) * 0.05;
+            particles.rotation.x += (handState.panY * 1.5 - particles.rotation.x) * 0.05;
+
+            // Physics Stats
+            const scale = 1.0 + (handState.tension * 0.3); // Expand on tension
+            
+            for(let i=0; i<PARTICLE_COUNT; i++) {
+                const i3 = i*3;
+                let tx = targetPositions[i3] * scale;
+                let ty = targetPositions[i3+1] * scale;
+                let tz = targetPositions[i3+2] * scale;
+
+                // Jitter (Energy)
+                if(handState.tension > 0.1) {
+                    const j = handState.tension * 2.0;
+                    tx += (Math.random()-0.5)*j; ty += (Math.random()-0.5)*j; tz += (Math.random()-0.5)*j;
+                }
+
+                const speed = 0.05 + (handState.tension * 0.2);
+                pos[i3] += (tx - pos[i3]) * speed;
+                pos[i3+1] += (ty - pos[i3+1]) * speed;
+                pos[i3+2] += (tz - pos[i3+2]) * speed;
+
+                // Color Heat
+                const t = handState.tension;
+                col[i3] = baseColors[i3]*(1-t) + t; // Fade to white
+                col[i3+1] = baseColors[i3+1]*(1-t) + t;
+                col[i3+2] = baseColors[i3+2]*(1-t) + t;
+            }
+
+            geometry.attributes.position.needsUpdate = true;
+            geometry.attributes.color.needsUpdate = true;
+            renderer.render(scene, camera);
+        }
+        animate(); // Start animation loop immediately (background)
+
+        // --- 6. CAMERA & AI ACTIVATION ---
+        const btn = document.getElementById('activate-btn');
+        const status = document.getElementById('status-text');
+        const video = document.getElementById('video-feed');
+        const previewCanvas = document.getElementById('preview-canvas');
+        const previewCtx = previewCanvas.getContext('2d');
+        let hands;
+
+        function onHandResults(results) {
+            previewCanvas.width = video.videoWidth;
+            previewCanvas.height = video.videoHeight;
+            previewCtx.drawImage(results.image, 0, 0, previewCanvas.width, previewCanvas.height);
+            
+            if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+                const lm = results.multiHandLandmarks[0];
+                drawConnectors(previewCtx, lm, HAND_CONNECTIONS, {color: '#00d2ff', lineWidth: 2});
+                
+                // Tension
+                const dist = Math.sqrt(Math.pow(lm[12].x-lm[0].x, 2) + Math.pow(lm[12].y-lm[0].y, 2));
+                handState.tension = Math.max(0, Math.min(1, 1 - ((dist-0.15)/0.3)));
+                
+                // Pan
+                handState.panX = (lm[9].x - 0.5) * 2;
+                handState.panY = (lm[9].y - 0.5) * 2;
+                
+                // Rotation
+                handState.tiltZ = -Math.atan2(lm[9].x - lm[0].x, lm[9].y - lm[0].y);
+
+                // Update UI Stats
+                document.getElementById('sys-status').innerText = "TRACKING";
+                document.getElementById('rot-val').innerText = Math.round(handState.tiltZ * 57);
+                document.getElementById('ten-val').innerText = Math.round(handState.tension * 100);
+            } else {
+                // Decay
+                handState.tension *= 0.9;
+                handState.panX *= 0.9;
+                handState.tiltZ *= 0.9;
+                document.getElementById('sys-status').innerText = "SEARCHING";
+            }
+        }
+
+        async function startProcessingLoop() {
+            if (!video.paused) {
+                await hands.send({image: video});
+                requestAnimationFrame(startProcessingLoop);
+            }
+        }
+
+        btn.addEventListener('click', async () => {
+            btn.disabled = true;
+            
+            // 1. ASK CAMERA PERMISSION FIRST (Fix for "Stuck" issue)
+            status.innerText = "Requesting Camera Access...";
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: { facingMode: "user", width: { ideal: 640 }, height: { ideal: 480 } }
+                });
+                video.srcObject = stream;
+                
+                status.innerText = "Downloading AI Models...";
+                
+                // 2. LOAD AI
+                hands = new Hands({locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`});
+                hands.setOptions({
+                    maxNumHands: 1,
+                    modelComplexity: isMobile ? 0 : 1, // 0 = Lite (Fast)
+                    minDetectionConfidence: 0.5,
+                    minTrackingConfidence: 0.5
+                });
+                hands.onResults(onHandResults);
+
+                // 3. START
+                video.onloadedmetadata = () => {
+                    video.play();
+                    startProcessingLoop();
+                    
+                    // UI Transition
+                    document.getElementById('center-overlay').style.display = 'none';
+                    document.getElementById('controls').style.opacity = '1';
+                    document.getElementById('controls').style.pointerEvents = 'auto';
+                    document.getElementById('preview-card').style.opacity = '1';
+                };
+
+            } catch (err) {
+                console.error(err);
+                status.innerText = "Error: " + err.message;
+                btn.innerText = "RETRY";
+                btn.disabled = false;
+            }
+        });
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth/window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+    </script>
+</body>
+</html>
